@@ -1,6 +1,5 @@
 #[feature(globs)];
-#[ link(name = "gtk",
-        package_id = "gtk") ];
+#[pkgid = "gtk#0.1"];
 
 extern mod extra;
 
