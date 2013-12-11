@@ -93,11 +93,3 @@ impl <'a> Iterator<gpointer> for GListIterator<'a> {
         }
     }
 }
-
-fn g_value_new(typ: GType) -> GValue {
-    unsafe {
-        let mut g_value: GValue = std::unstable::intrinsics::uninit();
-        g_value_init(&mut g_value, typ);
-        g_value
-    }
-}
