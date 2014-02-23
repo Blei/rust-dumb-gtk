@@ -1,48 +1,49 @@
-#[feature(globs)];
-#[pkgid = "gtk#0.1"];
+#![feature(globs)]
+#![crate_id = "gtk#0.1"]
+#![allow(non_camel_case_types)]
 
-extern mod extra;
+extern crate libc;
 
+use std::c_str;
+use std::c_vec;
 use std::cast;
 use std::ptr;
-
-use extra::c_vec;
 
 use ffi::*;
 
 pub mod ffi;
 
 unsafe fn init_something_with_args(args: ~[~str],
-        f: extern "C" unsafe fn(*mut std::libc::c_int, *mut *mut *mut i8)) -> ~[~str] {
-    let mut c_args = args.map(|s| { s.to_c_str() });
+        f: extern "C" unsafe fn(*mut libc::c_int, *mut *mut *mut i8)) -> ~[~str] {
+    let mut c_args = args.iter().map(|s| { s.to_c_str() }).collect::<Vec<c_str::CString>>();
     let mut args_n: i32 = args.len() as i32;
     let mut args_v = cast::transmute(
-        std::libc::malloc((std::mem::size_of::<*i8>() * args.len() + 1) as std::libc::size_t));
+        libc::malloc((std::mem::size_of::<*i8>() * args.len() + 1) as libc::size_t));
 
     {
         let mut args_vec = c_vec::CVec::new(args_v, args.len());
         for i in std::iter::range(0, args_n as uint) {
             // This is so unsafe... but we know that the c_args array
             // lives longer than the containing args_vec backing memory
-            c_args[i].with_mut_ref(|ptr| {
-                *args_vec.get_mut(i) = ptr;
+            c_args.get_mut(i).with_mut_ref(|ptr| {
+                *args_vec.get_mut(i).unwrap() = ptr;
             });
         }
     }
 
     f(&mut args_n, &mut args_v);
 
-    let mut new_args = ~[];
+    let mut new_args = Vec::new();
     {
         let args_vec2 = c_vec::CVec::new(args_v, args_n as uint);
         for i in std::iter::range(0, args_n as uint) {
-            new_args.push(std::str::raw::from_c_str(&**args_vec2.get(i)));
+            new_args.push(std::str::raw::from_c_str(&**args_vec2.get(i).unwrap()));
         }
     }
 
-    std::libc::free(cast::transmute(args_v));
+    libc::free(cast::transmute(args_v));
 
-    new_args
+    new_args.move_iter().collect()
 }
 
 /// Returns the modified command line arguments
@@ -52,7 +53,7 @@ pub unsafe fn gtk_init_with_args(args: ~[~str]) -> ~[~str] {
 
 pub unsafe fn gst_init_with_args(args: ~[~str]) -> ~[~str] {
     // clang deficiency, doesn't correctly encode `**argv[]` params
-    let my_gst_init: extern "C" fn(*mut std::libc::c_int, *mut *mut *mut std::libc::c_schar) =
+    let my_gst_init: extern "C" fn(*mut libc::c_int, *mut *mut *mut libc::c_char) =
         cast::transmute(gst_init);
     init_something_with_args(args, my_gst_init)
 }
@@ -64,7 +65,7 @@ pub unsafe fn g_signal_connect(instance: gpointer, detailed_signal: *gchar, c_ha
 }
 
 pub struct GListIterator<'a> {
-    priv current: Option<&'a Struct__GList>,
+    current: Option<&'a Struct__GList>,
 }
 
 impl <'a> GListIterator<'a> {
