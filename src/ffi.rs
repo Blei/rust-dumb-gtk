@@ -19928,6 +19928,18 @@ pub struct Struct___va_list_tag {
     pub overflow_arg_area: *mut ::libc::c_void,
     pub reg_save_area: *mut ::libc::c_void,
 }
+#[link(name = "gtk-3")]
+#[link(name = "gdk-3")]
+#[link(name = "pangocairo-1.0")]
+#[link(name = "pango-1.0")]
+#[link(name = "atk-1.0")]
+#[link(name = "cairo-gobject")]
+#[link(name = "cairo")]
+#[link(name = "gdk_pixbuf-2.0")]
+#[link(name = "gio-2.0")]
+#[link(name = "gstreamer-1.0")]
+#[link(name = "gobject-2.0")]
+#[link(name = "glib-2.0")]
 extern "C" {
     pub static mut __tzname: [*mut ::libc::c_char, ..2u];
     pub static mut __daylight: ::libc::c_int;
