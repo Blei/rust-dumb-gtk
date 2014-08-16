@@ -3,7 +3,7 @@
 # FIXME: try to break this huge ffi module up into multiple ones, one for glib, one for
 # cairo, ...
 BINDGEN_OPTS = `pkg-config --cflags-only-I gtk+-3.0 gstreamer-1.0` \
-	       -I/usr/lib/clang/3.4/include \
+	       -I/usr/lib/clang/3.4.2/include \
 	       -allow-bitfields -builtins
 
 RUSTC ?= rustc
