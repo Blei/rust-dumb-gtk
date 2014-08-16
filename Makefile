@@ -11,11 +11,12 @@ RUSTC_FLAGS = -g --crate-type dylib,rlib
 
 .PHONY: lib clean
 
-lib: ffi.rs lib.rs
-	$(RUSTC) $(RUSTC_FLAGS) lib.rs
+lib: src/lib.rs src/ffi.rs
+	mkdir -p target
+	$(RUSTC) $(RUSTC_FLAGS) $< --out-dir target
 
-ffi.rs: generated_from.h
-	rust-bindgen -o ffi.rs ${BINDGEN_OPTS} generated_from.h
+src/ffi.rs: generated_from.h
+	rust-bindgen -o $@ ${BINDGEN_OPTS} $<
 
 clean:
-	rm -f ffi.rs *.so *.rlib
+	rm -rf src/ffi.rs target

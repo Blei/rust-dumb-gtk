@@ -3,3 +3,5 @@
 tags
 *.so
 *.rlib
+/Cargo.lock
+/target

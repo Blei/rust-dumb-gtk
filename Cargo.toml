@@ -1,0 +1,4 @@
+[package]
+name = "gtk"
+version = "0.0.1"
+authors = ["Philipp Brüschweiler <blei42@gmail.com>"]
