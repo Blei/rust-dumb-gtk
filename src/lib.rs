@@ -1,13 +1,12 @@
-#![feature(globs)]
 #![crate_name = "gtk"]
 #![allow(non_camel_case_types)]
 
 extern crate libc;
 
-use std::c_str;
-use std::c_vec;
+use std::ffi as r_ffi;
 use std::mem;
 use std::ptr;
+use std::str;
 
 use ffi::*;
 
@@ -15,45 +14,45 @@ pub mod ffi;
 
 unsafe fn init_something_with_args(args: Vec<String>,
         f: unsafe extern "C" fn(*mut libc::c_int, *mut *mut *mut i8)) -> Vec<String> {
-    let mut c_args = args.iter().map(|s| { s.to_c_str() }).collect::<Vec<c_str::CString>>();
+    // This vec is used to store the CStrings while we make them available to the ffi
+    // for parsing.
+    let c_args: Vec<r_ffi::CString> =
+        args.iter().map(|s| { r_ffi::CString::from_slice(s.as_bytes()) }).collect();
     let mut args_n: i32 = args.len() as i32;
-    let mut args_v = mem::transmute(
-        libc::malloc((std::mem::size_of::<*mut i8>() * args.len() + 1) as libc::size_t));
+    let mut args_v =
+        libc::malloc((std::mem::size_of::<*mut i8>() * args.len() + 1) as libc::size_t)
+        as *mut *mut libc::c_char;
 
-    {
-        let mut args_vec = c_vec::CVec::new(args_v, args.len());
-        for i in std::iter::range(0, args_n as uint) {
-            // This is so unsafe... but we know that the c_args array
-            // lives longer than the containing args_vec backing memory
-            *args_vec.get_mut(i).unwrap() = c_args.get_mut(i).as_mut_ptr();
-        }
+    for i in 0..args_n {
+        // This is so unsafe... but we know that the c_args array
+        // lives longer than the containing args_vec backing memory
+        *args_v.offset(i as isize) = c_args[i as usize].as_slice_with_nul().as_ptr() as *mut _;
     }
 
     f(&mut args_n, &mut args_v);
 
     let mut new_args = Vec::new();
     {
-        let args_vec2 = c_vec::CVec::new(args_v, args_n as uint);
-        for &arg in args_vec2.as_slice().iter() {
-            new_args.push(std::string::raw::from_buf(arg as *const u8));
+        for i in 0..args_n {
+            let arg = *args_v.offset(i as isize) as *const libc::c_char;
+            let slice = r_ffi::c_str_to_bytes(&arg);
+            new_args.push(str::from_utf8(slice).unwrap().to_string());
         }
     }
 
     libc::free(mem::transmute(args_v));
 
-    new_args.move_iter().collect()
+    new_args.into_iter().collect()
 }
 
 /// Returns the modified command line arguments
-pub unsafe fn gtk_init_with_args(args: Vec<String>) -> Vec<String> {
+pub unsafe fn gtk_init_with_args_2(args: Vec<String>) -> Vec<String> {
     init_something_with_args(args, gtk_init)
 }
 
 pub unsafe fn gst_init_with_args(args: Vec<String>) -> Vec<String> {
     // clang deficiency, doesn't correctly encode `**argv[]` params
-    let my_gst_init: extern "C" fn(*mut libc::c_int, *mut *mut *mut libc::c_char) =
-        mem::transmute(gst_init);
-    init_something_with_args(args, my_gst_init)
+    init_something_with_args(args, gst_init)
 }
 
 pub unsafe fn g_signal_connect(instance: gpointer, detailed_signal: *const gchar,
@@ -74,14 +73,16 @@ impl <'a> GListIterator<'a> {
     }
 }
 
-impl <'a> Iterator<gpointer> for GListIterator<'a> {
+impl <'a> Iterator for GListIterator<'a> {
+    type Item = gpointer;
+
     fn next(&mut self) -> Option<gpointer> {
         if self.current.is_none() {
             return None;
         }
 
         let next = self.current.unwrap().next;
-        if next != ptr::mut_null() {
+        if next != ptr::null_mut() {
             unsafe {
                 self.current = mem::transmute(next);
                 Some((*next).data)
