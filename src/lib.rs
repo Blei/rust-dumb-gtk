@@ -17,7 +17,7 @@ unsafe fn init_something_with_args(args: Vec<String>,
     // This vec is used to store the CStrings while we make them available to the ffi
     // for parsing.
     let c_args: Vec<r_ffi::CString> =
-        args.iter().map(|s| { r_ffi::CString::from_slice(s.as_bytes()) }).collect();
+        args.iter().map(|s| { r_ffi::CString::new(s.as_bytes()).unwrap() }).collect();
     let mut args_n: i32 = args.len() as i32;
     let mut args_v =
         libc::malloc((std::mem::size_of::<*mut i8>() * args.len() + 1) as libc::size_t)
@@ -26,18 +26,16 @@ unsafe fn init_something_with_args(args: Vec<String>,
     for i in 0..args_n {
         // This is so unsafe... but we know that the c_args array
         // lives longer than the containing args_vec backing memory
-        *args_v.offset(i as isize) = c_args[i as usize].as_slice_with_nul().as_ptr() as *mut _;
+        *args_v.offset(i as isize) = c_args[i as usize].as_bytes_with_nul().as_ptr() as *mut _;
     }
 
     f(&mut args_n, &mut args_v);
 
     let mut new_args = Vec::new();
-    {
-        for i in 0..args_n {
-            let arg = *args_v.offset(i as isize) as *const libc::c_char;
-            let slice = r_ffi::c_str_to_bytes(&arg);
-            new_args.push(str::from_utf8(slice).unwrap().to_string());
-        }
+    for i in 0..args_n {
+        let arg = *args_v.offset(i as isize) as *const libc::c_char;
+        let slice = r_ffi::CStr::from_ptr(arg).to_bytes();
+        new_args.push(str::from_utf8(slice).unwrap().to_string());
     }
 
     libc::free(mem::transmute(args_v));
